@@ -6,7 +6,7 @@ The compiler compiles brainfuck programs into native assembly code for multiple 
 - -h                  --  Prints this message
 - -o <filename>       --  Sets the output file. The default is bf.out
 - -s <size>          --  Specifies the size of the cell array. 30k cells by default
-- --target <target>  --  The compilation target. Defaults to 64 bit linux
+- --target <target>  --  The compilation target. Defaults to nasm
 - --syscall          --  Whether or not the brainfuck program contains syscalls(see the Syscalls section below). 
 - --debug [a] [b]    --  Signals that the program contains the debug character "#", which will print the current cell array at values between a and b. If a and b aren't specified, then it'll print the first 16 cells
 ```
@@ -15,7 +15,7 @@ The compiler compiles brainfuck programs into native assembly code for multiple 
 - Attempting to go left at cell 0, or right at the rightmost cell, will exit with code 1
 - Cells are 1 byte(0-255), and wrap automaticall
 - The cell array is 30,000 cells large by default. Change this with the `-s` compiler flag
-- Mismatched brackets will return a compiler error(code 2)
+- Mismatched brackets or invalid characters(shouldn't be possible) will return a compiler error(code 2)
 
 # Syscalls
 The idea of syscalls in brainfuck comes from systemf(linked below). Systemf's implementation has been tweaked to allow for larger syscall codes.
