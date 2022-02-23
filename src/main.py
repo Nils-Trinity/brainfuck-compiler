@@ -50,7 +50,15 @@ def matchJumps(tokens: List[Token]) -> List[Tuple[int, int]]:
         if token.token == FWD:
             stack.append(token.addr)
         elif token.token == BKWD:
+            if len(stack) == 0:
+                print(f"Backward jump at {token.addr} has no matching forward jump")
+                exit(2)
             pairs.append((stack.pop(), token.addr))
+
+    if len(stack) > 0:
+        for token in stack:
+            print(f"Jump at {token.addr} is missing corresponding backward jump")
+            exit(2)
 
     return pairs
 
@@ -86,19 +94,81 @@ def parseProgram(program: str) -> List[Token]:
 # It should be noted that I don't currently know the differences between the various devices I'd like to compile to, so, for now I'm sticking to ensuring it runs on 64-bit Linux
 
 def compile_linux64(tokens: List[Token]) -> str:
-    lines = []
+    def get_ptr() -> str:
+        return "  mov rdx, [cell_ptr]\n"
 
+    def get_current_cell() -> List[str]:
+        return [get_ptr(), "  mov rax, [cell_arr+rdx]\n"]
+
+    lines = []
     # Header
-    lines.append(f"section .data\n\n")
+    lines.append(f"section .data\n")
+    lines.append(f"  arr_size equ {ARR_SIZE}\n\n")
     lines.append(f"section .bss\n")
-    lines.append(f"  cell_arr  resb 100\n")
+    lines.append(f"  cell_arr  resb arr_size\n")
     lines.append(f"  cell_ptr  resb 8\n")
     lines.append(f"  io_buffer resb 1\n\n")
     lines.append(f"section .text\n")
     lines.append(f"global _start\n\n")
     lines.append(f"_start:\n")
-    
+   
     #TODO: Compile each token into relevant assembly
+    for token in tokens:
+        if token.token == INC:
+            lines.append(f"inc_{token.addr}:\n")
+            lines += get_current_cell()
+            lines.append(f"  inc rax\n")
+            lines.append(f"  mov [cell_arr+rdx], rax\n\n")
+        elif token.token == DEC:
+            lines.append(f"dec_{token.addr}:\n")
+            lines.append(set_label(token))
+            lines += get_current_cell()
+            lines.append(f"  dec rax\n")
+            lines.append(f"  mov [cell_arr+rdx], rax\n\n")
+        elif token.token == LEFT:
+            #TODO: --wrap for left and right
+            lines.append(f"left_{token.addr}:\n")
+            lines.append(get_ptr())
+            lines.append(f"  dec rdx\n")
+            lines.append(f"  cmp rdx, 0x0\n")
+            lines.append(f"  jl memory_out_of_bounds\n")
+            lines.append(f"  mov [cell_ptr], rdx\n")
+        elif token.token == RIGHT:
+            continue
+        elif token.token == IN:
+            continue
+        elif token.token == OUT:
+            lines.append(f"out_{token.addr}:\n")
+            lines += get_current_cell()
+            lines.append(f"  mov byte [io_buffer], al\n\n")
+            lines.append(f"  mov rdx, 0x1\n")
+            lines.append(f"  mov rsi, io_buffer\n")
+            lines.append(f"  mov rdi, 0x1\n")
+            lines.append(f"  mov rax, 0x1\n")
+            lines.append(f"  syscall\n\n")
+        elif token.token == FWD:
+            continue
+        elif token.token == BKWD:
+            continue
+        elif token.token == SYSCALL:
+            #TODO: syscall and debug
+            continue
+        elif token.token == DEBUG:
+            continue
+        else:
+            print(f"Invalid token {token}. This should be unreachable")
+            exit(2)
+
+    lines.append(f"exit_normal:\n")
+    lines.append(f"  mov rdi, 0x0\n")
+    lines.append(f"  jmp exit\n")
+    lines.append(f"memory_out_of_bounds:\n")
+    lines.append(f"  mov rdi, 0x1\n")
+    lines.append(f"exit:\n")
+    lines.append(f"  mov rax, 0x3C\n")
+    lines.append(f"  syscall\n")
+
+    return lines
 
     #TODO: --no-exit flag, which forces the programmer to add a sys_exit call to their brainfuck programs. Not sure why or if it'd be useful, but its an option
     # Otherwise, the program should automatically append an exit with code 0
@@ -121,6 +191,11 @@ def help():
 
 
 def parse_args(argv: List[str]):
+    global FILENAME
+    global ARR_SIZE
+    global TARGET
+    global VALID_TOKENS
+    global WRAPS
     try:
         opts, args = getopt.getopt(argv, "ho:s:t:w", ["help", "syscall", "debug", "wrap"])
     except:
@@ -158,9 +233,10 @@ def main():
         program = file.read()
 
     tokens = parseProgram(filterChars(program))
-    print(tokens)
-    print(matchJumps(tokens))
     # TODO: Compile standard brainfuck to x86_64 linux through nasm
+    with open(FILENAME, "w") as outfile:
+        outfile.writelines(compile_linux64(tokens))
+
     # TODO: Syscalls
     
 
