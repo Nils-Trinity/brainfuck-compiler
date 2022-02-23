@@ -17,6 +17,11 @@ TARGET = "nasm64"
 HAS_SYSCALL = False
 WRAPS = False
 
+
+#-----------------------------------#
+#--- Intermediate Representation ---#
+#-----------------------------------#
+
 INC = '+'
 DEC = '-'
 LEFT = '<'
@@ -28,7 +33,9 @@ BKWD = ']'
 SYSCALL = '%'
 DEBUG = '#'
 
+# If the "--syscall" and/or "--debug" flags are set, they'll be appended to this list
 VALID_TOKENS = [INC, DEC, LEFT, RIGHT, IN, OUT, FWD, BKWD]
+
 
 @dataclass
 class Token:
@@ -70,6 +77,31 @@ def parseProgram(program: str) -> List[Token]:
 
     return tokens
 
+
+#----------------#
+#--- Compiler ---#
+#----------------#
+
+#TODO: Compile to multiple operating systems, processors, and both 32 and 64 bit assembly
+# It should be noted that I don't currently know the differences between the various devices I'd like to compile to, so, for now I'm sticking to ensuring it runs on 64-bit Linux
+
+def compile_linux64(tokens: List[Token]) -> str:
+    lines = []
+
+    # Header
+    lines.append(f"section .data\n\n")
+    lines.append(f"section .bss\n")
+    lines.append(f"  cell_arr  resb 100\n")
+    lines.append(f"  cell_ptr  resb 8\n")
+    lines.append(f"  io_buffer resb 1\n\n")
+    lines.append(f"section .text\n")
+    lines.append(f"global _start\n\n")
+    lines.append(f"_start:\n")
+    
+    #TODO: Compile each token into relevant assembly
+
+    #TODO: --no-exit flag, which forces the programmer to add a sys_exit call to their brainfuck programs. Not sure why or if it'd be useful, but its an option
+    # Otherwise, the program should automatically append an exit with code 0
 
 #------------------------#
 #--- Argument Parsing ---#
@@ -115,7 +147,6 @@ def parse_args(argv: List[str]):
             exit()
 
 def main():
-    # TODO: Parse flags properly
     parse_args(sys.argv[1:])
 
     inputfile = sys.argv[-1]
@@ -123,7 +154,6 @@ def main():
         print("ERROR: File not found.")
         exit(1)
 
-    # TODO: Parse brainfuck to produce an intermediate representation
     with open(inputfile, "r") as file:
         program = file.read()
 
