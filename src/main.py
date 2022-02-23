@@ -117,14 +117,13 @@ def compile_linux64(tokens: List[Token]) -> str:
         if token.token == INC:
             lines.append(f"inc_{token.addr}:\n")
             lines += get_current_cell()
-            lines.append(f"  inc rax\n")
-            lines.append(f"  mov [cell_arr+rdx], rax\n\n")
+            lines.append(f"  inc al\n")
+            lines.append(f"  mov [cell_arr+rdx], al\n\n")
         elif token.token == DEC:
             lines.append(f"dec_{token.addr}:\n")
-            lines.append(set_label(token))
             lines += get_current_cell()
-            lines.append(f"  dec rax\n")
-            lines.append(f"  mov [cell_arr+rdx], rax\n\n")
+            lines.append(f"  dec al\n")
+            lines.append(f"  mov [cell_arr+rdx], al\n\n")
         elif token.token == LEFT:
             #TODO: --wrap for left and right
             lines.append(f"left_{token.addr}:\n")
@@ -134,9 +133,22 @@ def compile_linux64(tokens: List[Token]) -> str:
             lines.append(f"  jl memory_out_of_bounds\n")
             lines.append(f"  mov [cell_ptr], rdx\n")
         elif token.token == RIGHT:
-            continue
+            lines.append(f"right_{token.addr}:\n")
+            lines.append(get_ptr())
+            lines.append(f"  inc rdx\n")
+            lines.append(f"  cmp rdx, arr_size\n")
+            lines.append(f"  jg memory_out_of_bounds\n")
+            lines.append(f"  mov [cell_ptr], rdx\n")
         elif token.token == IN:
-            continue
+            lines.append(f"in_{token.addr}:\n")
+            lines.append(f"  mov rdx, 0x1\n")
+            lines.append(f"  mov rsi, io_buffer\n")
+            lines.append(f"  mov rdi, 0x0\n")
+            lines.append(f"  mov rax, 0x0\n")
+            lines.append(f"  syscall\n\n")
+            lines += get_current_cell()
+            lines.append(f"  mov rsi, [io_buffer]\n")
+            lines.append(f"  mov byte [cell_arr+rdx], sil\n\n")
         elif token.token == OUT:
             lines.append(f"out_{token.addr}:\n")
             lines += get_current_cell()
