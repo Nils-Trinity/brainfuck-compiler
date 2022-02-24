@@ -132,7 +132,7 @@ def compile_linux64(tokens: List[Token]) -> str:
             lines.append(f"  dec rdx\n")
             lines.append(f"  cmp rdx, 0x0\n")
             lines.append(f"  jl memory_out_of_bounds\n")
-            lines.append(f"  mov [cell_ptr], rdx\n")
+            lines.append(f"  mov [cell_ptr], rdx\n\n")
         elif token.token == RIGHT:
             lines.append(f"right_{token.addr}:\n")
             lines.append(get_ptr())
@@ -165,17 +165,15 @@ def compile_linux64(tokens: List[Token]) -> str:
                 if forward == token.addr:
                     lines.append(f"fwd_{token.addr}:\n")
                     lines += get_current_cell()
-                    lines.append(f"  cmp rax, 0x0\n")
-                    lines.append(f"  jz bkwd_{backward}_body\n")
-                    lines.append(f"fwd_{token.addr}_body:\n\n")
+                    lines.append(f"  cmp al, 0x0\n")
+                    lines.append(f"  jz bkwd_{backward}\n\n")
         elif token.token == BKWD:
             for forward, backward in pairs:
                 if backward == token.addr:
                     lines.append(f"bkwd_{token.addr}:\n")
                     lines += get_current_cell()
-                    lines.append(f"  cmp rax, 0x0\n")
-                    lines.append(f"  jnz fwd_{forward}_body\n")
-                    lines.append(f"bkwd_{token.addr}_body:\n\n")
+                    lines.append(f"  cmp al, 0x0\n")
+                    lines.append(f"  jnz fwd_{forward}\n\n")
         elif token.token == SYSCALL:
             #TODO: syscall and debug
             continue
