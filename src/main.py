@@ -101,6 +101,7 @@ def compile_linux64(tokens: List[Token]) -> str:
         return [get_ptr(), "  mov rax, [cell_arr+rdx]\n"]
 
     lines = []
+    pairs = matchJumps(tokens)
     # Header
     lines.append(f"section .data\n")
     lines.append(f"  arr_size equ {ARR_SIZE}\n\n")
@@ -138,8 +139,9 @@ def compile_linux64(tokens: List[Token]) -> str:
             lines.append(f"  inc rdx\n")
             lines.append(f"  cmp rdx, arr_size\n")
             lines.append(f"  jg memory_out_of_bounds\n")
-            lines.append(f"  mov [cell_ptr], rdx\n")
+            lines.append(f"  mov [cell_ptr], rdx\n\n")
         elif token.token == IN:
+            #TODO: --no-io flag for when you have syscalls and hate yourself
             lines.append(f"in_{token.addr}:\n")
             lines.append(f"  mov rdx, 0x1\n")
             lines.append(f"  mov rsi, io_buffer\n")
@@ -159,9 +161,21 @@ def compile_linux64(tokens: List[Token]) -> str:
             lines.append(f"  mov rax, 0x1\n")
             lines.append(f"  syscall\n\n")
         elif token.token == FWD:
-            continue
+            for forward, backward in pairs:
+                if forward == token.addr:
+                    lines.append(f"fwd_{token.addr}:\n")
+                    lines += get_current_cell()
+                    lines.append(f"  cmp rax, 0x0\n")
+                    lines.append(f"  jz bkwd_{backward}_body\n")
+                    lines.append(f"fwd_{token.addr}_body:\n\n")
         elif token.token == BKWD:
-            continue
+            for forward, backward in pairs:
+                if backward == token.addr:
+                    lines.append(f"bkwd_{token.addr}:\n")
+                    lines += get_current_cell()
+                    lines.append(f"  cmp rax, 0x0\n")
+                    lines.append(f"  jnz fwd_{forward}_body\n")
+                    lines.append(f"bkwd_{token.addr}_body:\n\n")
         elif token.token == SYSCALL:
             #TODO: syscall and debug
             continue

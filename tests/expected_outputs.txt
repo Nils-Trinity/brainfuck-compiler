@@ -1,0 +1,9 @@
+increment.bf          - print 1,         return code 0
+increment_overflow.bf - print \0 - \377, return code 0
+decrement.bf          - print \377,      return code 0
+left.bf               - print \1,        return code 0
+left_err.bf           -                  return code 1
+right.bf              - print \1,        return code 0
+right_err.bf          -                  return code 1
+jump.bf               - print \0 - \377, return code 0
+jump-nested.bf        - echo,            return code 0
