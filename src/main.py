@@ -94,6 +94,10 @@ def parseProgram(program: str) -> List[Token]:
 # It should be noted that I don't currently know the differences between the various devices I'd like to compile to, so, for now I'm sticking to ensuring it runs on 64-bit Linux
 
 def compile_linux64(tokens: List[Token]) -> str:
+    #TODO: Systemf's authour, like the genius they are, does much of this section better than I do
+    # I should definitely take some inspiration from it
+    # For example, just keeping cell_ptr in r15, invalidating the function directly below, and generally saving an instruction or two per brainfuck operation
+
     def get_ptr() -> str:
         return "  mov rdx, [cell_ptr]\n"
 
