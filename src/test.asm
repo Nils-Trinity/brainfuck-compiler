@@ -25,12 +25,12 @@ section .bss
   arg4_len resb 1
   arg5_len resb 1
 
-  arg1_data resb arg_size ; The argument's data itself
-  arg2_data resb arg_size ; Defaults at 256 bytes
-  arg3_data resb arg_size ; but should be variable using
-  arg4_data resb arg_size ; -a(?) <value>
-  arg5_data resb arg_size ; i.e. -a 6969 to make these 6969 bytes long
-  arg6_data resb arg_size ; TODO: Check if arg_size*6 > arr_size, and throw an error if so
+  arg0_data resb arg_size ; The argument's data itself
+  arg1_data resb arg_size ; Defaults at 256 bytes
+  arg2_data resb arg_size ; but should be variable using
+  arg3_data resb arg_size ; -a(?) <value>
+  arg4_data resb arg_size ; i.e. -a 6969 to make these 6969 bytes long
+  arg5_data resb arg_size ; TODO: Check if arg_size*6 > arr_size, and throw an error if so
 
 section .text
 global _start
@@ -406,6 +406,143 @@ left_58:
   jl memory_out_of_bounds
   mov [cell_ptr], rdx
 
+syscall_59:
+  mov r15, [cell_ptr]
+  mov r11, [cell_arr+r15] ; opcode len
+  
+  mov rdi, r15 ; opcode
+  mov rsi, r11
+  call combine_bytes
+  mov [syscall_data], rax
+
+  add r15, r11 ; get to the next section
+  add r15, 1
+
+  mov r11, [cell_arr+r15] ; num args
+  inc r15 ; get to arg
+prep_args:
+  mov r10, 0 ; counter
+
+  cmp r11, 0
+  je sys_prep_exec
+  
+  cmp r10, 0
+  je prep_arg0
+  cmp r10, 1
+  je prep_arg1
+  cmp r10, 2
+  je prep_arg2
+  cmp r10, 3
+  je prep_arg3
+  cmp r10, 4
+  je prep_arg4
+  cmp r10, 5
+  je prep_arg5
+  ; args
+    ; arg type
+    ; arg len
+    ; arg value
+  ; TODO: Get sys_exit.bf working as a prototype
+
+%macro prep_argn 1
+  mov rax, [cell_arr+r15]
+  mov [arg%1_type], rax
+
+  inc r15
+  mov rax, [cell_arr+r15]
+  mov [arg%1_len], al
+  mov r10, rax
+
+ load_arg%1: ; make sure this works
+  cmp r10, 0
+  je finish_prep_args
+
+  inc r15
+  mov rax, [cell_arr+r15]
+  mov [cell_arr+r15], al
+  dec r10
+  jmp load_arg%1
+%endmacro
+
+prep_arg0:
+  prep_argn 0
+prep_arg1:
+  prep_argn 1
+prep_arg2:
+  prep_argn 2
+prep_arg3:
+  prep_argn 3
+prep_arg4:
+  prep_argn 4
+prep_arg5:
+  prep_argn 5
+
+finish_prep_args:
+  dec r11
+  inc r10
+  jmp prep_args
+
+sys_prep_exec:
+
+%macro exec_prep_argn 1
+  ; get arg type
+  mov r8, [arg%1_type]
+  mov rdi, [arg%1_len]
+
+  cmp r8, 0
+  je exec_prep_arg%1_immediate
+  cmp r8, 1
+  je exec_prep_arg%1_ptr_contents
+  cmp r8, 2
+  je exec_prep_arg%1_ptr_contents
+  jmp invalid_arg_type
+  ; 0 = immediate
+ exec_prep_arg%1_immediate:
+  mov rsi, [arg%1_data]
+  call combine_bytes
+  push rax
+  jmp exec_prep_arg%1_end
+  ; 1 = ptr contents
+ exec_prep_arg%1_ptr_contents:
+  ; 2 = ptr
+ exec_prep_arg%1_ptr:
+ exec_prep_arg%1_end:
+
+%endmacro
+
+exec_prep_arg0:
+  exec_prep_argn 0
+exec_prep_arg1:
+  exec_prep_argn 1
+exec_prep_arg2:
+  exec_prep_argn 2
+exec_prep_arg3:
+  exec_prep_argn 3
+exec_prep_arg4:
+  exec_prep_argn 4
+exec_prep_arg5:
+  exec_prep_argn 5
+exec_prep_opcode:
+  mov rsi, [syscall_data]
+  call combine_bytes
+  push rax
+
+exec_syscall_59:
+  pop r9
+  pop r8
+  pop r10
+  pop rdx
+  pop rsi
+  pop rdi
+  jmp exit
+  pop rax
+  syscall
+  ; TODO: put return value back into tape
+  ; The cell the syscall started on should be return value length
+  ; The following <length> cells are the return value
+  ; God please let this work
+
+
 combine_bytes:
   push rbp
   ; rdi is start addr
@@ -431,117 +568,6 @@ combine_bytes:
   mov rax, r10
   pop rbp
   ret
-
-syscall_59:
-  mov r15, [cell_ptr]
-  mov r11, [cell_arr+ptr] ; opcode len
-  
-  mov rdi, r15 ; opcode
-  mov rsi, r11
-  call combine_bytes
-  mov [syscall_data], rax
-
-  add r15, r11+1 ; get to the next section
-
-  mov r11, [cell_arr+ptr] ; num args
-  inc r15 ; get to arg
-prep_args:
-  mov r10, 0 ; counter
-
-  cmp r11, 0
-  je sys_prep_exec
-  
-  cmp r10, 0
-  je prep_arg0
-  cmp r10, 1
-  je prep_arg1
-  cmp r10, 2
-  je prep_arg2
-  cmp r10, 3
-  je prep_arg3
-  cmp r10, 4
-  je prep_arg4
-  cmp r10, 5
-  je prep_arg5
-  ; args
-    ; arg type
-    ; arg len
-    ; arg value
-  ; TODO: Get sys_exit.bf working as a prototype
-prep_arg0:
-  mov rax, [cell_arr+r15]
-  mov [arg0_type], rax
-
-  inc r15
-  mov rax, [cell_arr+r15]
-  mov [arg0_len], al
-  mov r10, rax
-
- load_arg0: ; make sure this works
-  cmp r10, 0
-  je finish_prep_args
-
-  inc r15
-  mov rax, [cell_arr+r15]
-  mov [cell_arr+r15], al
-  dec r10
-  jmp load_arg0
-
-prep_arg1:
-prep_arg2:
-prep_arg3:
-prep_arg4:
-prep_arg5:
-finish_prep_args:
-  dec r11
-  inc r10
-  jmp prep_args
-
-sys_prep_exec:
-exec_prep_arg0:
-  ; get arg type
-  mov r8, [arg0_type]
-  mov rdi, [arg0_len]
-
-  cmp r8, 0
-  je exec_prep_arg0_immediate
-  cmp r8, 1
-  je exec_prep_arg0_ptr_contents
-  cmp r8, 2
-  je exec_prep_arg0_ptr_contents
-  jmp invalid_arg_type
-  ; 0 = immediate
- exec_prep_arg0_immediate:
-  mov rsi, [arg0_data]
-  call combine_bytes
-  push rax
-  jmp exec_prep_arg0_end
-  ; 1 = ptr contents
- exec_prep_arg0_ptr_contents:
-  ; 2 = ptr
- exec_prep_arg0_ptr:
- exec_prep_arg0_end:
-
-exec_prep_arg1:
-exec_prep_arg2:
-exec_prep_arg3:
-exec_prep_arg4:
-exec_prep_arg5:
-exec_prep_opcode:
-
-exec_syscall_59:
-  pop r9
-  pop r8
-  pop r10
-  pop rdx
-  pop rsi
-  pop rdi
-  pop rax
-  syscall
-  ; TODO: put return value back into tape
-  ; The cell the syscall started on should be return value length
-  ; The following <length> cells are the return value
-  ; God please let this work
 
 
 exit_normal:
